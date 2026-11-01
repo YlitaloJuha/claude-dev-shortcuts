@@ -13,6 +13,10 @@
 
 <p align="center"><sub>Only this mod enabled, in a real terminal session: the row, then what a press on AFK asks. The offers come from the session.</sub></p>
 
+<p align="center"><img src="docs/desktop.png" alt="The row of shortcuts in the desktop app, each button with its icon, below the context and limit bars of claude-bars" width="660"></p>
+
+<p align="center"><sub>In the desktop app: icons instead of dividers. The bars above the row come from <a href="https://github.com/YlitaloJuha/claude-bars">claude-bars</a>.</sub></p>
+
 The things you ask for at the turning points of a session, one click away. Hover over a button to see what it does. Each button asks before it starts, so a misclick costs nothing. The typed commands don't ask.
 
 ## Install
