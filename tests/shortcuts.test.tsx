@@ -46,7 +46,8 @@ const capture = (
     percentUsed = 10,
     agents = [],
     memory,
-  }: { selected?: string; answer?: string | null; fork?: { text: string } | { reason: string }; turns?: number; percentUsed?: number; agents?: { id: string; status: string }[]; memory?: Memory } = {},
+    above,
+  }: { selected?: string; answer?: string | null; fork?: { text: string } | { reason: string }; turns?: number; percentUsed?: number; agents?: { id: string; status: string }[]; memory?: Memory; above?: unknown } = {},
 ) => {
   const session = mock.session(on)
   const sent: { text: string; methodsBefore: number }[] = []
@@ -116,6 +117,7 @@ const capture = (
     return answer === null ? { deny: 'closed' } : { result: { questions: e.questions, answers: { [question]: answer } } }
   })
   on('ui.render', ($: any, e: any) => {
+    if (above !== undefined) return above
     const { Text } = $.ui.resolve(e)
 
     return <Text>beneath</Text>
@@ -205,7 +207,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await ui.unmount()
   })
 
-  test(`each button's tip stays hidden until a hover on that button, on ${surface}`, async ($, on) => {
+  test(`each button's tip stays hidden until a hover on that button, and moves nothing, on ${surface}`, async ($, on) => {
     capture(on)
     const ui = await $.ui.mount({ ...BAND, surface })
     const drawn = (element: any): any[] => (typeof element === 'object' ? [element, ...(element.children ?? []).flatMap(drawn)] : [])
@@ -213,12 +215,15 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
     for (const [key, words] of [['challenge', 'you both agree'], ['council', 'more agents'], ['serve', 'handover']] as const) {
       const anchor = elements.find(element => element.props?.key === `tip-${key}` || element.key === `tip-${key}`)
-      const tip = drawn(anchor).find(element => element.props?.display === 'none')
+      const tip = surface === 'desktop'
+        ? drawn(anchor).find(element => element.props?.display === 'none')
+        : elements.find(element => element.hover?.scope === `tip-${key}` && element.props?.display === 'none')
 
       expect(tip?.hover?.display).toBe('flex')
-      expect(tip?.props?.position).toBe(surface === 'desktop' ? 'absolute' : undefined)
+      expect(tip?.props?.position).toBe('absolute')
       expect(JSON.stringify(tip)).toContain(words)
       expect(JSON.stringify(anchor)).toContain(`"key":"${key}"`)
+      if (surface === 'terminal') expect(anchor?.hover?.scope).toBe(`tip-${key}`)
     }
     await ui.unmount()
   })
@@ -290,6 +295,38 @@ test('a terminal draws its buttons untrimmed', async ($, on) => {
 
   expect((await trims(ui)).length).toBe(0)
   expect((await narrowed(ui)).length).toBe(0)
+  await ui.unmount()
+})
+
+test('a terminal divides its buttons, and a desktop does not', async ($, on) => {
+  capture(on)
+  const dividers = async (surface: 'terminal' | 'desktop') => {
+    const ui = await $.ui.mount({ ...BAND, surface })
+    const found = await ui.findAll({ type: 'Text', text: /│/ })
+    await ui.unmount()
+
+    return found.length
+  }
+
+  expect(await dividers('terminal')).toBe(4)
+  expect(await dividers('desktop')).toBe(0)
+})
+
+const rowTop = async (ui: any) => (await ui.findAll({ type: 'Box' })).find((box: any) => box.props.flexWrap === 'wrap').props.marginTop
+
+test('a terminal leaves no blank line under another mod, whose row its tips paint over', async ($, on) => {
+  capture(on)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+
+  expect(await rowTop(ui)).toBe(0)
+  await ui.unmount()
+})
+
+test('a terminal keeps a line for the tips when no other mod draws above the row', async ($, on) => {
+  capture(on, { above: { type: 'engine', ref: 1 } })
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+
+  expect(await rowTop(ui)).toBe(1)
   await ui.unmount()
 })
 

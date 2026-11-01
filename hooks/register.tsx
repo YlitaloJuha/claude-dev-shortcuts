@@ -55,6 +55,8 @@ let isAsking = false
 
 const iconSvg = (kind: keyof typeof ICONS) => `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b8b8b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[kind]}</svg>`
 
+const tipScope = (key: keyof typeof ICONS) => `tip-${key}`
+
 const quoted = (words: string) => `these words:\n\n> ${words.trim().replace(/\n/g, '\n> ')}`
 
 const subjectOf = async ($: EngineInterface, given: string) => {
@@ -237,8 +239,11 @@ export const register: Register = on => {
 
       return <Svg source={iconSvg(kind)} alt={label} width={15} height={15} />
     }
+    const isTerminal = e.surface === 'terminal'
     // A terminal's gap is a whole blank line, so it gets none.
-    const between = e.surface === 'terminal' ? 0 : 1
+    const between = isTerminal ? 0 : 1
+    // Except above a row with nothing over it: a tip paints on the line above, and the band clips what falls outside it.
+    const above = isTerminal && rest?.type !== 'engine' ? 0 : 1
     const isDesktop = e.surface === 'desktop'
     const hasTurns = e.props.isWorking || (await $.session.turns()) > 0
     const mode = await read($, afkMode)
@@ -280,18 +285,29 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {rest}
-        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} rowGap={between} marginTop={between} paddingX={1}>
-          {shortcuts.map(shortcut => (
-            <Box key={`tip-${shortcut.key}`} flexDirection="row" alignItems="center">
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={isTerminal ? 1 : 2} rowGap={between} marginTop={above} paddingX={1}>
+          {shortcuts.map((shortcut, index) => (
+            <Box key={`tip-${shortcut.key}`} flexDirection="row" alignItems="center" {...(isTerminal ? { hover: { scope: tipScope(shortcut.key) } } : {})}>
+              {/* A terminal draws a plain button as bare words, so without these the row reads as one line of text. */}
+              {isTerminal && index > 0 && <Text dimColor>{'│ '}</Text>}
               {iconOf(shortcut.key, shortcut.label)}
               {buttonOf(shortcut)}
-              {/* A button has no tooltip of its own, so a hover over this keyed box opens one: a card on a desktop, in place in a terminal. */}
-              <Box position={isDesktop ? 'absolute' : undefined} width={isDesktop ? TIP_COLUMNS : undefined} marginLeft={isDesktop ? 0 : 1} display="none" hover={{ display: 'flex' }}>
-                <Text dimColor>{shortcut.tip}</Text>
-              </Box>
+              {/* A button has no tooltip of its own, so a hover over this keyed box opens a card. */}
+              {isDesktop && (
+                <Box position="absolute" width={TIP_COLUMNS} display="none" hover={{ display: 'flex' }}>
+                  <Text dimColor>{shortcut.tip}</Text>
+                </Box>
+              )}
             </Box>
           ))}
           {phase !== 'idle' && <Text dimColor>Wrapping up</Text>}
+          {/* In a terminal a tip in the row would push the next buttons away from the pointer, so each paints over the row above instead. */}
+          {isTerminal &&
+            shortcuts.map(shortcut => (
+              <Box key={`card-${shortcut.key}`} position="absolute" top={-1} left={1} display="none" hover={{ scope: tipScope(shortcut.key), display: 'flex' }}>
+                <Text dimColor>{shortcut.tip.padEnd(e.props.bodyColumns - 2)}</Text>
+              </Box>
+            ))}
         </Box>
       </Box>
     )
