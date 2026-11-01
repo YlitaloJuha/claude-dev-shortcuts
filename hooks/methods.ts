@@ -2,11 +2,7 @@
 import type { MemoryGrowth } from '../types'
 import { AIM_BYTES, kilobytes, memoryText } from './memory.ts'
 
-const ROUNDS = `Map the subject as a tree of decisions: each decision hangs off the ones it depends on.
-A round asks every decision whose prerequisites are settled, and nothing that hinges on an answer still open. Each answer changes what can be asked, so work that out again before the next round.
-Write each question like this, worded so that "yes" accepts your recommendation:
-
-❓ 1. Short title
+const QUESTION_FORMAT = `❓ 1. Short title
 The question, in a sentence or two, and why it matters.
 ➡ The answer you recommend, alone on its line.`
 
@@ -22,11 +18,15 @@ export const afkTask = (task: string) => `I am walking away. Work on this first:
 
 The rules that follow still hold. When it is done, go on with whatever else they allow.`
 
-export const CHALLENGE_ME = `How to run this challenge: argue with me until we share one understanding.
+export const CHALLENGE = `How to run this challenge: talk this design or idea through with me, back and forth, until your vision and mine align and we both agree on the solution.
 
 Change nothing while challenging: no edits, commits, sessions or implementation.
 
-${ROUNDS}
+Map the subject as a tree of decisions: each decision hangs off the ones it depends on.
+A round asks every decision whose prerequisites are settled, and nothing that hinges on an answer still open. Each answer changes what can be asked, so work that out again before the next round.
+Write each question like this, worded so that "yes" accepts your recommendation:
+
+${QUESTION_FORMAT}
 
 After a round, stop and wait. I answer by number.
 
@@ -43,48 +43,40 @@ Facts and decisions:
 
 Keep sentences short.
 
-When every branch is visited and nothing is left silently assumed, or I say wrap up: list what we decided and what stays open. Ask whether that is our shared understanding, and wait. Even then, don't act until I tell you to.`
+When every branch is visited and nothing is left silently assumed, or I say wrap up: state the solution as you now see it, what we decided and what stays open. Ask whether we both agree on it, and wait. If I don't, go on. Even when I do, don't act until I tell you to.`
 
-export const CHALLENGE_AGENT = `How to run this challenge: the plan argues with a fresh agent, and I come in at the end. I ran this shortcut, so it is my request for this agent.
+export const COUNCIL = `How to run the agent council: this session's current plan goes to a fresh agent for review, and I get its findings with your view on them. I ran this shortcut, so it is my request for these agents.
 
-Change nothing while challenging: no edits, commits or implementation.
+Change nothing while the council runs: no edits, commits or implementation.
 
-1. Spawn one agent with the Agent tool, subagent_type "dev-shortcuts:challenger". Not a fork: it must not see this conversation.
-2. Brief it with the subject as written, the goal, the limits I stated and the paths that matter. Leave out your reasons, so it isn't anchored.
-3. It answers with a round of questions. Reply to each round with SendMessage (load it through ToolSearch if it is deferred):
-   - Answer from what I said, or from what you checked. Say which.
-   - If its point holds, give way and say how the plan changes.
-   - If it doesn't, show why.
-   - A decision I never made is not yours to make. Answer "open: the owner's call" and go on.
-4. After each round, write me one line: the sharpest point, and who gave way.
-5. Stop when it says NOTHING LEFT, or after 6 rounds.
+1. Find the plan: the subject my message names, else the accepted plan-mode plan, else what we agreed in this conversation. If there is none, say so in one line and stop. Don't make one up.
+2. Spawn one agent with the Agent tool, subagent_type "dev-shortcuts:council". Not a fork: it must not see this conversation.
+3. Brief it with the plan as written, the goal, the limits I stated and the paths that matter. Leave out your reasons, so it isn't anchored.
+4. Check what its report claims against the code or docs before you pass it on.
 
 Then tell me, in short lines:
-- What changed in the plan.
+- What it found that holds, and how the plan should change.
 - What it got wrong, and why.
 - What needs me, as questions worded so that "yes" accepts your recommendation:
 
-❓ 1. Short title
-The question, in a sentence or two, and why it matters.
-➡ The answer you recommend, alone on its line.
+${QUESTION_FORMAT}
 
 Wait for my answers. Don't act until I tell you to.`
 
-export const CHALLENGER = `You are a challenger. You get a plan or idea with no history of how it came about, and you have no stake in it. Find where it is wrong before anyone builds it.
+export const COUNCIL_AGENT = `You lead a review council. You get a plan with no history of how it came about, and you have no stake in it. Find where it is wrong before anyone builds it.
 
-Argue with its owner in rounds.
+Change nothing. Bash is for reading only.
 
-${ROUNDS}
+1. List what the plan rests on: its claims about the code, the docs and the world, and its assumptions, scope, order and failure cases. Note the simpler plan that was skipped, if there is one.
+2. Check what you can yourself with Read and Bash.
+3. Where a claim is big enough to need its own look, or a second opinion would help, spawn subagents with the Agent tool: at most 4, each with one question and the paths that matter. Tell each to change nothing and to cite what it checked. Skip this for a plan small enough to check alone.
+4. Weigh what comes back yourself. A subagent's answer is evidence, not a verdict.
 
-Rules:
-- Every question must be able to change the plan. No nitpicks.
-- Go after assumptions, scope, order, failure cases, and the simpler plan that was skipped.
-- Look facts up yourself with Read and Bash, and cite paths. Bash is for reading only: change nothing.
-- Say where you think the owner is wrong, and why. Never agree just to move on. No praise.
-- When the owner answers "open: the owner's call", leave that branch and go on.
-- A later answer that changes an earlier one reopens that branch.
-
-Each message is one round and nothing else. When every branch is visited and nothing is left silently assumed, write NOTHING LEFT on its own line, then the weakest points that remain, if any.`
+Report once, and nothing else:
+- Findings, the most serious first. For each: what is wrong, the evidence with paths, and what you would change. Only what could change the plan: no nitpicks and no praise.
+- Checked and fine: one line each.
+- Could not check: what is left, and why.
+- Decisions the plan leaves open for its owner.`
 
 export const SERVE = `How to serve: write a handover from this session's plan, then start a new top-level session from it. I ran this shortcut, so it is my request for that session, now.
 

@@ -75,7 +75,12 @@ const capture = (
     return { value: 'one line\n'.repeat(memory?.indexLines ?? 10) }
   })
   on('command.register', () => ({ value: { command: 'any' } }))
-  on('agent.register', () => ({ value: {} }))
+  const registered: { name: string; tools?: readonly string[] }[] = []
+  on('agent.register', (_: unknown, e: any) => {
+    registered.push(e)
+
+    return { value: {} }
+  })
   on('session.start', (_: unknown, e: any) => ({ cwd: e.cwd }))
   on('model.fork', () => ({ value: 'text' in fork ? { isAnswered: true, text: fork.text, usage: {} } : { isAnswered: false, ...fork } }))
   on('agent.list', () => ({ value: agents }))
@@ -116,7 +121,7 @@ const capture = (
     return <Text>beneath</Text>
   })
 
-  return { sent, asked, options, toasts, told, ran, looks, clock: mock.clock(on), method: () => JSON.stringify(session.appended()[0]?.message.content) }
+  return { sent, asked, options, toasts, told, ran, looks, registered, clock: mock.clock(on), method: () => JSON.stringify(session.appended()[0]?.message.content) }
 }
 
 // AFK in test mode, from a press on its row, with Claude idle.
@@ -144,25 +149,27 @@ test('/challenge challenges the person: a short prompt, the method before it uns
 
   expect(sent[0]?.text).toBe('Challenge the cache plan')
   expect(sent[0]?.methodsBefore).toBe(1)
-  expect(method()).toContain('How to run this challenge: argue with me')
+  expect(method()).toContain('your vision and mine align and we both agree on the solution')
   expect(asked).toEqual([])
 })
 
-test('/challenge me with nothing given takes the conversation', async ($, on) => {
+test('/challenge with nothing given takes the conversation', async ($, on) => {
   const { sent, clock } = capture(on)
-  await $.command.run({ command: 'challenge', args: 'me' } as never)
+  await $.command.run({ command: 'challenge', args: '' } as never)
   await clock.advance(1)
 
   expect(sent[0]?.text).toBe('Challenge the plan or idea in this conversation')
 })
 
-test('/challenge agent asks for the challenger', async ($, on) => {
-  const { sent, clock, method } = capture(on)
-  await $.command.run({ command: 'challenge', args: 'agent the cache plan' } as never)
+test('/council asks for the council agent, which can spawn more agents', async ($, on) => {
+  const { sent, clock, method, registered } = capture(on)
+  await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true } as never)
+  await $.command.run({ command: 'council', args: 'the cache plan' } as never)
   await clock.advance(1)
 
-  expect(sent[0]?.text).toBe('Have a fresh agent challenge the cache plan')
-  expect(method()).toContain('dev-shortcuts:challenger')
+  expect(sent[0]?.text).toBe('Have the agent council review the cache plan')
+  expect(method()).toContain('dev-shortcuts:council')
+  expect(registered.find(agent => agent.name === 'council')?.tools).toContain('Agent')
 })
 
 test('/serve asks for a top-level session and keeps the purpose', async ($, on) => {
@@ -187,14 +194,33 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const { sent, asked, clock } = capture(on, { selected: 'one cache' })
     const ui = await $.ui.mount({ ...BAND, surface })
 
-    expect((await ui.find({ type: 'Button', key: 'challenge-me' }))?.text).toBe('Challenge this')
-    expect((await ui.find({ type: 'Button', key: 'challenge-agent' }))?.text).toBe('Challenge with a fresh agent')
+    expect((await ui.find({ type: 'Button', key: 'challenge' }))?.text).toBe('Challenge this')
+    expect((await ui.find({ type: 'Button', key: 'council' }))?.text).toBe('Agent council')
     expect(await ui.find({ type: 'Button', key: 'serve' })).toBeDefined()
-    await ui.press({ key: 'challenge-me' })
+    await ui.press({ key: 'challenge' })
     await clock.advance(1)
 
     expect(asked).toEqual(['Start challenging this now?'])
     expect(sent[0]?.text).toBe('Challenge these words:\n\n> one cache')
+    await ui.unmount()
+  })
+
+  test(`each button's tip stays hidden until a hover on that button, on ${surface}`, async ($, on) => {
+    capture(on)
+    const ui = await $.ui.mount({ ...BAND, surface })
+    const drawn = (element: any): any[] => [element, ...(element.children ?? []).filter((child: unknown) => typeof child === 'object').flatMap(drawn)]
+    const elements = drawn(await ui.find({ type: 'Box' }))
+
+    for (const [key, words] of [['challenge', 'you both agree'], ['council', 'more agents'], ['serve', 'handover']] as const) {
+      const scope = `tip-${key}`
+      const inScope = elements.filter(element => element.hover?.scope === scope)
+      const tip = inScope.find(element => element.props?.display === 'none')
+      const button = inScope.find(element => element.props?.display !== 'none')
+
+      expect(tip?.hover?.display).toBe('flex')
+      expect(JSON.stringify(button)).toContain(`"key":"${key}"`)
+      expect(JSON.stringify(tip)).toContain(words)
+    }
     await ui.unmount()
   })
 

@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AfkMode, AfkState, MemoryGrowth, WrapUpPhase } from '../types'
 import { afkNotice, afkRefuses, afterAfkTurn, chooseAfk, countAfkTool, registerAfk, resetAfk, setWorking } from './afk.ts'
 import { measureMemory, memoryText } from './memory.ts'
-import { AFK_OFFER, afkTask, CHALLENGE_AGENT, CHALLENGE_ME, CHALLENGER, DILUTE, dilutePrompt, SERVE } from './methods.ts'
+import { AFK_OFFER, afkTask, CHALLENGE, COUNCIL, COUNCIL_AGENT, DILUTE, dilutePrompt, SERVE } from './methods.ts'
 import { afterWrapUpTurn, resetWrapUp, wrapUp, wrapUpNotice } from './wrap-up.ts'
 
 // The engine reads a state reference only from a const in the same file, so each file names its own.
@@ -13,9 +13,9 @@ const afkTaken = atom({ plugin: 'dev-shortcuts', key: 'afkTaken' } as const, 0)
 const wrapUpPhase = atom({ plugin: 'dev-shortcuts', key: 'wrapUpPhase' } as const, 'idle' as WrapUpPhase)
 const memoryGrown = atom({ plugin: 'dev-shortcuts', key: 'memoryGrown' } as const, null as MemoryGrowth | null)
 
-type Kind = 'challenge-me' | 'challenge-agent' | 'serve'
+type Kind = 'challenge' | 'council' | 'serve'
 type Method = Kind | 'dilute'
-type Row = { kind: Kind; label: string; question: string }
+type Row = { kind: Kind; label: string; question: string; tip: string }
 type Offer = { mode: AfkMode; task: string }
 
 const CONVERSATION = 'the plan or idea in this conversation'
@@ -27,23 +27,28 @@ const MAX_TASK = 90
 const HIGHLIGHT_HEIGHT = 1.3
 const HIGHLIGHT_TRIM = 0.5
 
-const METHODS: Record<Method, string> = { 'challenge-me': CHALLENGE_ME, 'challenge-agent': CHALLENGE_AGENT, serve: SERVE, dilute: DILUTE }
+const METHODS: Record<Method, string> = { challenge: CHALLENGE, council: COUNCIL, serve: SERVE, dilute: DILUTE }
 
 // Lucide icons (ISC), 24 × 24.
 const ICONS: Record<Method | 'afk' | 'wrap-up', string> = {
   afk: '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/>',
   'wrap-up': '<path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/>',
-  'challenge-me': '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
-  'challenge-agent': '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+  challenge: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  council: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
   serve: '<path d="M3 20a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1Z"/><path d="M20 16a8 8 0 1 0-16 0"/><path d="M12 4v4"/><path d="M10 4h4"/>',
   dilute: '<path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/>',
 }
 
 const ROWS: readonly Row[] = [
-  { kind: 'challenge-me', label: 'Challenge this', question: 'Start challenging this now?' },
-  { kind: 'challenge-agent', label: 'Challenge with a fresh agent', question: 'Have a fresh agent challenge this now?' },
-  { kind: 'serve', label: 'Serve a new session', question: "Hand this session's plan to a new session now?" },
+  { kind: 'challenge', label: 'Challenge this', question: 'Start challenging this now?', tip: 'Talk this through with Claude, back and forth, until you both agree on the solution.' },
+  { kind: 'council', label: 'Agent council', question: 'Send this plan to the agent council now?', tip: 'A fresh agent reviews the plan, using more agents to verify it where needed, and reports back.' },
+  { kind: 'serve', label: 'Serve a new session', question: "Hand this session's plan to a new session now?", tip: "Writes a handover from this session's plan and continues it in a new session." },
 ]
+
+const AFK_TIP = 'Pick work for Claude to do alone while you are away.'
+const AFK_ON_TIP = 'AFK is on. Press to turn it off.'
+const WRAP_UP_TIP = 'Finishes the current step, verifies, updates the docs and leaves a handoff. Asks before it commits or pushes.'
+const DILUTE_TIP = "Thins out this project's memory folder. Shows a plan first and changes nothing until you say yes."
 
 let isAsking = false
 
@@ -62,7 +67,7 @@ const promptOf = async ($: EngineInterface, kind: Kind, given: string) => {
   if (kind === 'serve') return `Serve this session's plan to a new session${given ? `. The next session is for: ${given}` : ''}`
   const subject = await subjectOf($, given)
 
-  return kind === 'challenge-me' ? `Challenge ${subject}` : `Have a fresh agent challenge ${subject}`
+  return kind === 'challenge' ? `Challenge ${subject}` : `Have the agent council review ${subject}`
 }
 
 // The method goes in as a row the person doesn't see; the short prompt is what they read.
@@ -146,14 +151,6 @@ const offerAfk = ($: EngineInterface) =>
     await chooseAfk($, offers.find(o => o.task === answer)?.mode ?? 'develop')
   })
 
-const parseChallenge = (args: string): { kind: Kind; topic: string } => {
-  const [, first = '', rest = ''] = /^(\S*)\s*([\s\S]*)$/.exec(args.trim()) ?? []
-  if (first === 'agent') return { kind: 'challenge-agent', topic: rest }
-  if (first === 'me') return { kind: 'challenge-me', topic: rest }
-
-  return { kind: 'challenge-me', topic: args.trim() }
-}
-
 export const register: Register = on => {
   registerAfk(on)
 
@@ -194,13 +191,14 @@ export const register: Register = on => {
   })
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'challenge', description: 'Have Claude challenge this, or a fresh agent challenge the plan.', argumentHint: '[me|agent] [topic]' })
+    await $.command.register({ name: 'challenge', description: 'Talk this through with Claude until you both agree on the solution.', argumentHint: '[topic]' })
+    await $.command.register({ name: 'council', description: 'Have a fresh agent review the plan, using more agents to verify it.', argumentHint: '[what to review]' })
     await $.command.register({ name: 'serve', description: "Hand this session's plan to a new top-level session.", argumentHint: '[what the next session is for]' })
     await $.agent.register({
-      name: 'challenger',
-      description: 'Argues with a plan it has never seen, in rounds of questions. Use only when the person runs /challenge agent.',
-      prompt: CHALLENGER,
-      tools: ['Read', 'Bash'],
+      name: 'council',
+      description: 'Reviews a plan it has never seen and can spawn subagents to verify it. Use only when the person runs /council.',
+      prompt: COUNCIL_AGENT,
+      tools: ['Read', 'Bash', 'Agent'],
       model: 'inherit',
     })
     const started = await next(e)
@@ -210,8 +208,13 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'challenge' }, async ($, e) => {
-    const { kind, topic } = parseChallenge(e.args)
-    sendSoon($, kind, await promptOf($, kind, topic))
+    sendSoon($, 'challenge', await promptOf($, 'challenge', e.args.trim()))
+
+    return {}
+  })
+
+  on('command.run', { command: 'council' }, async ($, e) => {
+    sendSoon($, 'council', await promptOf($, 'council', e.args.trim()))
 
     return {}
   })
@@ -245,16 +248,16 @@ export const register: Register = on => {
       if (e.props.isWorking) $.ui.toast('Claude is working. Try again when it stops.')
       else void work()
     }
-    const shortcuts: { key: keyof typeof ICONS; label: string; isDim: boolean; onPress: () => void }[] = [
-      ...ROWS.map(row => ({ key: row.kind, label: row.label, isDim: e.props.isWorking, onPress: whenIdle(() => startAfterAsking($, row)) })),
+    const shortcuts: { key: keyof typeof ICONS; label: string; tip: string; isDim: boolean; onPress: () => void }[] = [
+      ...ROWS.map(row => ({ key: row.kind, label: row.label, tip: row.tip, isDim: e.props.isWorking, onPress: whenIdle(() => startAfterAsking($, row)) })),
       ...(isAfkOn
-        ? [{ key: 'afk' as const, label: `AFK ${mode} ${await read($, afkTaken)}`, isDim: false, onPress: () => void chooseAfk($, 'off') }]
+        ? [{ key: 'afk' as const, label: `AFK ${mode} ${await read($, afkTaken)}`, tip: AFK_ON_TIP, isDim: false, onPress: () => void chooseAfk($, 'off') }]
         : hasTurns
-          ? [{ key: 'afk' as const, label: 'AFK', isDim: e.props.isWorking, onPress: whenIdle(() => offerAfk($)) }]
+          ? [{ key: 'afk' as const, label: 'AFK', tip: AFK_TIP, isDim: e.props.isWorking, onPress: whenIdle(() => offerAfk($)) }]
           : []),
-      ...(phase === 'idle' && hasTurns ? [{ key: 'wrap-up' as const, label: 'Wrap up', isDim: false, onPress: () => void wrapUpAfterAsking($, isAfkOn) }] : []),
+      ...(phase === 'idle' && hasTurns ? [{ key: 'wrap-up' as const, label: 'Wrap up', tip: WRAP_UP_TIP, isDim: false, onPress: () => void wrapUpAfterAsking($, isAfkOn) }] : []),
       // Its plan waits for a yes, which AFK would refuse.
-      ...(grown && !isAfkOn ? [{ key: 'dilute' as const, label: 'Dilute memory', isDim: e.props.isWorking, onPress: whenIdle(() => diluteAfterAsking($, grown)) }] : []),
+      ...(grown && !isAfkOn ? [{ key: 'dilute' as const, label: 'Dilute memory', tip: DILUTE_TIP, isDim: e.props.isWorking, onPress: whenIdle(() => diluteAfterAsking($, grown)) }] : []),
     ]
 
     const buttonOf = (shortcut: (typeof shortcuts)[number]) => {
@@ -275,9 +278,15 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {rest}
+        {/* A button has no tooltip of its own, so a hover shows its tip on a line of its own, above the row so the row stays under the pointer. */}
+        {shortcuts.map(shortcut => (
+          <Box display="none" paddingX={1} marginTop={between} hover={{ scope: `tip-${shortcut.key}`, display: 'flex' }}>
+            <Text dimColor>{shortcut.tip}</Text>
+          </Box>
+        ))}
         <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} rowGap={between} marginTop={between} paddingX={1}>
           {shortcuts.map(shortcut => (
-            <Box flexDirection="row" alignItems="center">
+            <Box flexDirection="row" alignItems="center" hover={{ scope: `tip-${shortcut.key}` }}>
               {iconOf(shortcut.key, shortcut.label)}
               {buttonOf(shortcut)}
             </Box>

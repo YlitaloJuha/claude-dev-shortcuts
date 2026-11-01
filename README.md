@@ -1,11 +1,11 @@
 <h1 align="center">claude-dev-shortcuts</h1>
 
-<p align="center"><b>A row of shortcuts above the prompt: challenge the plan, serve it to a new session, walk away, wrap up, and thin out your memory once it has grown.</b></p>
+<p align="center"><b>A row of shortcuts above the prompt: talk the plan through until you agree, have an agent council review it, serve it to a new session, walk away, wrap up, and thin out your memory once it has grown.</b></p>
 
 <p align="center">
   <img alt="type: Claude Code mod" src="https://img.shields.io/badge/type-Claude%20Code%20mod-6f42c1?style=flat-square">
   <img alt="tested on: Claude Code 2.1.309" src="https://img.shields.io/badge/tested%20on-Claude%20Code%202.1.309-D97757?style=flat-square">
-  <img alt="tests: 78 passing" src="https://img.shields.io/badge/tests-78%20passing-2ea44f?style=flat-square">
+  <img alt="tests: 80 passing" src="https://img.shields.io/badge/tests-80%20passing-2ea44f?style=flat-square">
   <img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-555?style=flat-square">
 </p>
 
@@ -13,7 +13,7 @@
 
 <p align="center"><sub>Only this mod enabled, in a real terminal session: the row, then what a press on AFK asks. The offers come from the session.</sub></p>
 
-The things you ask for at the turning points of a session, one click away. Each button asks before it starts, so a misclick costs nothing. The typed commands don't ask.
+The things you ask for at the turning points of a session, one click away. Hover over a button to see what it does. Each button asks before it starts, so a misclick costs nothing. The typed commands don't ask.
 
 ## Install
 
@@ -33,8 +33,8 @@ In the desktop app, click + next to the prompt box, then Plugins, Add marketplac
 
 ## What it does
 
-- **Challenge this:** Claude argues with you in rounds of numbered questions until you share one understanding. Each question gives the answer it recommends, worded so that "yes" accepts it. Nothing changes while it argues. With words selected, those words are the subject.
-- **Challenge with a fresh agent:** An agent that has never seen this conversation argues with the plan, for up to 6 rounds. You get what changed, what it got wrong, and the questions only you can answer.
+- **Challenge this:** A back-and-forth about the design or idea in this session, in rounds of numbered questions, until your vision and Claude's align and you both agree on the solution. Each question gives the answer it recommends, worded so that "yes" accepts it. Nothing changes while you talk. With words selected, those words are the subject.
+- **Agent council:** This session hands its current plan to a fresh agent for review. That agent can spawn up to 4 more agents to verify what the plan rests on. You get what holds, what it got wrong, and the questions only you can answer. With no plan, it says so and stops.
 - **Serve a new session:** Writes a handover from this session's plan to `~/.claude/handovers/`, then starts a new top-level session from it. In the desktop app it starts the session itself. In a terminal it gives you one command to run. With no plan, it says so and stops.
 - **AFK:** Offers up to three things from this session that Claude could do without you. Pick one or type your own, and it keeps working until the work runs out, a limit is reached, or you type again.
 - **Wrap up:** Stops at a suitable moment, verifies, updates the docs, leaves a handoff, then asks before it commits or pushes.
@@ -46,15 +46,15 @@ AFK stops by itself when the session says it is done, after two turns in a row w
 
 | Command | What it does |
 |---|---|
-| `/challenge [topic]` | Claude argues with you about the topic, the selected words, or the plan in this conversation |
-| `/challenge agent [topic]` | A fresh agent argues with the plan |
+| `/challenge [topic]` | Talk through the topic, the selected words, or the plan in this conversation until you both agree |
+| `/council [what to review]` | A fresh agent reviews the plan, using more agents to verify it |
 | `/serve [what the next session is for]` | Hand this session's plan to a new top-level session |
 
 AFK, Wrap up and Dilute memory are buttons only.
 
 ## What it costs
 
-Each shortcut is normal Claude use and counts against your plan. A challenge with a fresh agent also runs that agent, for up to 6 rounds. AFK asks the model once for its offers, then takes up to 30 turns. Serve starts a second session. Measuring the memory folder uses no model.
+Each shortcut is normal Claude use and counts against your plan. An agent council also runs its agent and up to 4 more. AFK asks the model once for its offers, then takes up to 30 turns. Serve starts a second session. Measuring the memory folder uses no model.
 
 ## What it can reach
 
@@ -64,11 +64,12 @@ No network and no shell commands through the mod API. The mod itself reads one t
 
 - **AFK does not change your permission mode.** In manual mode the session stops at the first permission prompt and waits for you. Choose a mode that allows edits before you leave.
 - AFK's command blocks are pattern matches, so a command can be spelled past them. Treat them as a seatbelt, not a sandbox.
-- The fresh agent has Read and Bash. Its rules say Bash is for reading only, and nothing enforces that but your permission mode.
+- The council agent has Read, Bash and Agent, and the agents it spawns get what you allow them. Their rules say to change nothing, and nothing enforces that but your permission mode.
 - **Use it instead of [`claude-afk`](https://github.com/YlitaloJuha/claude-afk) and [`claude-wrap-up`](https://github.com/YlitaloJuha/claude-wrap-up), not beside them.** It holds its own copy of both. With them on too, you get two sets of buttons. [`claude-bars`](https://github.com/YlitaloJuha/claude-bars) works beside it, and does not take over this mod's buttons.
 - The buttons wait for an idle session, except Wrap up. AFK and Wrap up appear after the first turn.
 - A desktop button has no size settings, so the mod clips each button to shape its hover highlight. The clip hides the keyboard focus ring there.
-- Tested in real terminal sessions: the row, the question a press asks, Challenge this, `/serve` with no plan to hand over, and the AFK offers. In the desktop app: the row and Wrap up. A challenge with a fresh agent, serving a real plan, AFK after a pick and a real dilution have only been checked in tests.
+- A button has no tooltip of its own, so its hover text appears on a line above the row. A terminal shows it only where the pointer reaches Claude Code.
+- Tested in real terminal sessions: the row, the question a press asks, Challenge this, `/serve` with no plan to hand over, and the AFK offers. In the desktop app: the row and Wrap up. An agent council, the hover text, serving a real plan, AFK after a pick and a real dilution have only been checked in tests.
 - Claude Code draws the band above the prompt only in the terminal and the desktop app, so what this mod draws there does not show in VS Code or on mobile.
 
 ## Develop
