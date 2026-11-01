@@ -1,0 +1,15 @@
+{
+  "name": "claude-dev-shortcuts",
+  "description": "A row of shortcuts above the prompt: challenge the plan, serve it to a new session, walk away, wrap up, and thin out your memory once it has grown.",
+  "owner": {
+    "name": "Juha Ylitalo",
+    "url": "https://github.com/YlitaloJuha"
+  },
+  "plugins": [
+    {
+      "name": "dev-shortcuts",
+      "source": "./",
+      "description": "A row of shortcuts above the prompt: challenge the plan, serve it to a new session, walk away, wrap up, and thin out your memory once it has grown."
+    }
+  ]
+}
