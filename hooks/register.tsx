@@ -26,6 +26,7 @@ const MAX_TASK = 90
 // A desktop button's hover highlight: its height in lines, and what comes off each side in characters.
 const HIGHLIGHT_HEIGHT = 1.3
 const HIGHLIGHT_TRIM = 0.5
+const TIP_COLUMNS = 48
 
 const METHODS: Record<Method, string> = { challenge: CHALLENGE, council: COUNCIL, serve: SERVE, dilute: DILUTE }
 
@@ -238,6 +239,7 @@ export const register: Register = on => {
     }
     // A terminal's gap is a whole blank line, so it gets none.
     const between = e.surface === 'terminal' ? 0 : 1
+    const isDesktop = e.surface === 'desktop'
     const hasTurns = e.props.isWorking || (await $.session.turns()) > 0
     const mode = await read($, afkMode)
     const isAfkOn = mode !== 'off'
@@ -278,17 +280,15 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {rest}
-        {/* A button has no tooltip of its own, so a hover shows its tip on a line of its own, above the row so the row stays under the pointer. */}
-        {shortcuts.map(shortcut => (
-          <Box display="none" paddingX={1} marginTop={between} hover={{ scope: `tip-${shortcut.key}`, display: 'flex' }}>
-            <Text dimColor>{shortcut.tip}</Text>
-          </Box>
-        ))}
         <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} rowGap={between} marginTop={between} paddingX={1}>
           {shortcuts.map(shortcut => (
-            <Box flexDirection="row" alignItems="center" hover={{ scope: `tip-${shortcut.key}` }}>
+            <Box key={`tip-${shortcut.key}`} flexDirection="row" alignItems="center">
               {iconOf(shortcut.key, shortcut.label)}
               {buttonOf(shortcut)}
+              {/* A button has no tooltip of its own, so a hover over this keyed box opens one: a card on a desktop, in place in a terminal. */}
+              <Box position={isDesktop ? 'absolute' : undefined} width={isDesktop ? TIP_COLUMNS : undefined} marginLeft={isDesktop ? 0 : 1} display="none" hover={{ display: 'flex' }}>
+                <Text dimColor>{shortcut.tip}</Text>
+              </Box>
             </Box>
           ))}
           {phase !== 'idle' && <Text dimColor>Wrapping up</Text>}

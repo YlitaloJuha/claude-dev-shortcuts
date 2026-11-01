@@ -208,18 +208,17 @@ for (const surface of ['terminal', 'desktop'] as const) {
   test(`each button's tip stays hidden until a hover on that button, on ${surface}`, async ($, on) => {
     capture(on)
     const ui = await $.ui.mount({ ...BAND, surface })
-    const drawn = (element: any): any[] => [element, ...(element.children ?? []).filter((child: unknown) => typeof child === 'object').flatMap(drawn)]
-    const elements = drawn(await ui.find({ type: 'Box' }))
+    const drawn = (element: any): any[] => (typeof element === 'object' ? [element, ...(element.children ?? []).flatMap(drawn)] : [])
+    const elements = drawn(await ui.drawn())
 
     for (const [key, words] of [['challenge', 'you both agree'], ['council', 'more agents'], ['serve', 'handover']] as const) {
-      const scope = `tip-${key}`
-      const inScope = elements.filter(element => element.hover?.scope === scope)
-      const tip = inScope.find(element => element.props?.display === 'none')
-      const button = inScope.find(element => element.props?.display !== 'none')
+      const anchor = elements.find(element => element.props?.key === `tip-${key}` || element.key === `tip-${key}`)
+      const tip = drawn(anchor).find(element => element.props?.display === 'none')
 
       expect(tip?.hover?.display).toBe('flex')
-      expect(JSON.stringify(button)).toContain(`"key":"${key}"`)
+      expect(tip?.props?.position).toBe(surface === 'desktop' ? 'absolute' : undefined)
       expect(JSON.stringify(tip)).toContain(words)
+      expect(JSON.stringify(anchor)).toContain(`"key":"${key}"`)
     }
     await ui.unmount()
   })
