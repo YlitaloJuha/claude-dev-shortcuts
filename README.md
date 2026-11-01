@@ -68,7 +68,7 @@ No network and no shell commands through the mod API. The mod itself reads one t
 - **Use it instead of [`claude-afk`](https://github.com/YlitaloJuha/claude-afk) and [`claude-wrap-up`](https://github.com/YlitaloJuha/claude-wrap-up), not beside them.** It holds its own copy of both. With them on too, you get two sets of buttons. [`claude-bars`](https://github.com/YlitaloJuha/claude-bars) works beside it, and does not take over this mod's buttons.
 - The buttons wait for an idle session, except Wrap up. AFK and Wrap up appear after the first turn.
 - A desktop button has no size settings, so the mod clips each button to shape its hover highlight. The clip hides the keyboard focus ring there.
-- Tested in real terminal sessions: the row, the question a press asks, Challenge this, `/serve` with no plan to hand over, and the AFK offers. In the desktop app: the row. A challenge with a fresh agent, serving a real plan, AFK after a pick, Wrap up and a real dilution have only been checked in tests.
+- Tested in real terminal sessions: the row, the question a press asks, Challenge this, `/serve` with no plan to hand over, and the AFK offers. In the desktop app: the row and Wrap up. A challenge with a fresh agent, serving a real plan, AFK after a pick and a real dilution have only been checked in tests.
 - Claude Code draws the band above the prompt only in the terminal and the desktop app, so what this mod draws there does not show in VS Code or on mobile.
 
 ## Develop
